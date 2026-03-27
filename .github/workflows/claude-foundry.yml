@@ -1,10 +1,4 @@
-# Claude Code via Microsoft Foundry (Azure) using an API key.
-#
-# Repository secrets required:
-#   ANTHROPIC_FOUNDRY_API_KEY  — API key from Azure AI Foundry "Endpoints and keys"
-#   ANTHROPIC_BASE_URL         — Foundry endpoint, e.g. https://YOUR_RESOURCE.services.ai.azure.com/anthropic
-
-name: Claude Code (Microsoft Foundry)
+name: Claude Code
 
 on:
   issue_comment:
@@ -12,30 +6,29 @@ on:
 
 jobs:
   claude:
-    if: contains(github.event.comment.body, '@claude')
+    if: |
+      contains(github.event.comment.body, '@claude') &&
+      github.event.issue.pull_request == null
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
       issues: write
-      actions: read
-
+      pull-requests: write
     env:
       ANTHROPIC_FOUNDRY_API_KEY: ${{ secrets.ANTHROPIC_FOUNDRY_API_KEY }}
       ANTHROPIC_FOUNDRY_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
-      - name: Run Claude Code (Foundry)
-        id: claude
+      - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
-          use_foundry: "true"
+          trigger_phrase: "@Claude"
+          anthropic_api_key: ${{ secrets.ANTHROPIC_FOUNDRY_API_KEY }}
           github_token: ${{ github.token }}
-          claude_args: |
-            --model claude-sonnet-4-6
-            --system-prompt "After making any code changes, always create a pull request targeting the main branch using the gh CLI. Include a clear title and description summarising what was changed and why."
+          claude_args: "--dangerously-skip-permissions"
+          prompt: |
+            Analyze the issue context and implement the requested changes.
+            Create a pull request with your implementation that addresses the issue.
+            Reference the issue number in the PR description.
