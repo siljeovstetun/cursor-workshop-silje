@@ -1,5 +1,7 @@
 # Cursor Workshop
 
+Hello Silje
+
 A starter project for learning AI-assisted development with Cursor.
 
 ## Project Structure
