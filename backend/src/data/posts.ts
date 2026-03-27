@@ -121,4 +121,15 @@ export const posts: Post[] = [
     tags: ["GraphQL", "Apollo", "API"],
     imageUrl: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800",
   },
+  {
+    id: "11",
+    title: "Claude Code: AI-Assisted Development from GitHub Issues",
+    slug: "claude-code-ai-assisted-development-github-issues",
+    excerpt: "Automate your development workflow by letting Claude solve GitHub issues and create pull requests automatically.",
+    content: "Claude Code integrates directly with GitHub to help you implement features, fix bugs, and create pull requests — all triggered from issue comments. By connecting Jira with Claude via GitHub Actions, teams can go from ticket to PR with a single @claude mention. In this post, we explore how to set up this workflow and get the most out of AI-assisted development in your team.",
+    author: "Silje",
+    publishedAt: "2026-03-27T13:00:00Z",
+    tags: ["Claude", "AI", "GitHub", "Automation"],
+    imageUrl: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800",
+  },
 ];
