@@ -1,0 +1,40 @@
+# Claude Code via Microsoft Foundry (Azure) using an API key.
+#
+# Repository secrets required:
+#   ANTHROPIC_FOUNDRY_API_KEY  — API key from Azure AI Foundry "Endpoints and keys"
+#   ANTHROPIC_BASE_URL         — Foundry endpoint, e.g. https://YOUR_RESOURCE.services.ai.azure.com/anthropic
+
+name: Claude Code (Microsoft Foundry)
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  claude:
+    if: contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: read
+
+    env:
+      ANTHROPIC_FOUNDRY_API_KEY: ${{ secrets.ANTHROPIC_FOUNDRY_API_KEY }}
+      ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code (Foundry)
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          use_foundry: "true"
+          github_token: ${{ github.token }}
+          claude_args: |
+            --model claude-sonnet-4-5
