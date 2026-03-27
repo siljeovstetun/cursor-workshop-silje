@@ -5,11 +5,12 @@
 # Required secrets:
 #   ANTHROPIC_FOUNDRY_API_KEY   — Azure AI Foundry API key
 #   ANTHROPIC_BASE_URL          — Foundry endpoint (e.g. https://<resource>.services.ai.azure.com/anthropic)
-#   AZURE_CLIENT_ID             — Entra app registration client ID (federated with GitHub OIDC)
+#   AZURE_CLIENT_ID             — Entra app registration client ID
+#   AZURE_CLIENT_SECRET         — Entra app registration client secret
 #   AZURE_TENANT_ID             — Entra tenant ID
 #   AZURE_SUBSCRIPTION_ID       — Azure subscription ID
 #
-# Azure RBAC: the Entra identity needs at least "Log Analytics Reader" on
+# Azure RBAC: the service principal needs at least "Log Analytics Reader" on
 #   rg-snkm-shared-p / law-snkm-p to run log queries.
 
 name: Production Log Analysis
@@ -26,7 +27,6 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
-      id-token: write       # Required for Azure OIDC login
 
     env:
       ANTHROPIC_FOUNDRY_API_KEY: ${{ secrets.ANTHROPIC_FOUNDRY_API_KEY }}
@@ -43,6 +43,7 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
 
       - name: Fetch production logs (last 24 hours)
         id: logs
