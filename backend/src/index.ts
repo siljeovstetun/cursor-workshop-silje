@@ -1,12 +1,34 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
+import jwt from "jsonwebtoken";
 import { posts } from "./data/posts";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const JWT_SECRET = process.env.JWT_SECRET || "changeme";
 
 app.use(cors());
 app.use(express.json());
+
+function verifyToken(req: Request, res: Response, next: NextFunction): void {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+  if (!token) {
+    res.set("WWW-Authenticate", 'Bearer realm="api"');
+    res.status(401).json({ error: "Missing authorization token" });
+    return;
+  }
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    (req as Request & { user: unknown }).user = payload;
+    next();
+  } catch {
+    res.set("WWW-Authenticate", 'Bearer realm="api", error="invalid_token"');
+    res.status(401).json({ error: "Invalid or expired token" });
+  }
+}
 
 // Get all posts
 app.get("/api/posts", (req, res) => {
@@ -47,6 +69,11 @@ app.get("/api/tags", (req, res) => {
   const uniqueTags = [...new Set(allTags)].sort();
 
   res.json(uniqueTags);
+});
+
+// Protected endpoint - requires a valid JWT
+app.get("/api/v1.0/protected", verifyToken, (req, res) => {
+  res.json({ message: "Access granted", user: (req as Request & { user: unknown }).user });
 });
 
 // Health check
