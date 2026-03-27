@@ -1,0 +1,38 @@
+name: PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    env:
+      ANTHROPIC_FOUNDRY_API_KEY: ${{ secrets.ANTHROPIC_FOUNDRY_API_KEY }}
+      ANTHROPIC_FOUNDRY_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Review PR with Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          use_foundry: "true"
+          github_token: ${{ github.token }}
+          claude_args: "--model claude-sonnet-4-6"
+          prompt: |
+            Review this pull request and post a comment with your findings. Cover:
+            - A short summary of what the PR does
+            - Any bugs, logic errors, or edge cases
+            - Code quality and readability issues
+            - Security concerns if any
+            - Suggestions for improvement
+
+            Be concise and constructive. Use markdown with headers for each section.
+            If the PR looks good overall, say so clearly.
