@@ -1,0 +1,130 @@
+# Fetches production logs from Azure Log Analytics, asks Claude to identify the
+# 3 most critical errors from the last 24 hours, creates GitHub issues for each,
+# and starts a fix for the most critical one.
+#
+# Required secrets:
+#   ANTHROPIC_FOUNDRY_API_KEY   — Azure AI Foundry API key
+#   ANTHROPIC_BASE_URL          — Foundry endpoint (e.g. https://<resource>.services.ai.azure.com/anthropic)
+#   AZURE_CLIENT_ID             — Entra app registration client ID (federated with GitHub OIDC)
+#   AZURE_TENANT_ID             — Entra tenant ID
+#   AZURE_SUBSCRIPTION_ID       — Azure subscription ID
+#
+# Azure RBAC: the Entra identity needs at least "Log Analytics Reader" on
+#   rg-snkm-shared-p / law-snkm-p to run log queries.
+
+name: Production Log Analysis
+
+on:
+  schedule:
+    - cron: '0 7 * * *'   # Every day at 07:00 UTC
+  workflow_dispatch:        # Also triggerable manually from the Actions tab
+
+jobs:
+  analyze-logs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write       # Required for Azure OIDC login
+
+    env:
+      ANTHROPIC_FOUNDRY_API_KEY: ${{ secrets.ANTHROPIC_FOUNDRY_API_KEY }}
+      ANTHROPIC_FOUNDRY_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+      LOG_ANALYTICS_WORKSPACE: a53c2ee0-9900-4756-b9c1-ab1b96a28d87
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Fetch production logs (last 24 hours)
+        id: logs
+        run: |
+          echo "Querying AppExceptions..."
+          EXCEPTIONS=$(az monitor log-analytics query \
+            --workspace "$LOG_ANALYTICS_WORKSPACE" \
+            --analytics-query "
+              AppExceptions
+              | where TimeGenerated > ago(24h)
+              | summarize
+                  occurrences = count(),
+                  first_seen  = min(TimeGenerated),
+                  last_seen   = max(TimeGenerated),
+                  sample_msg  = any(OuterMessage),
+                  sample_type = any(ExceptionType),
+                  sample_stack = any(OuterStackTrace)
+                by ProblemId
+              | order by occurrences desc
+              | limit 20
+            " \
+            --output json 2>/dev/null || echo "[]")
+
+          echo "Querying failed requests..."
+          FAILED_REQUESTS=$(az monitor log-analytics query \
+            --workspace "$LOG_ANALYTICS_WORKSPACE" \
+            --analytics-query "
+              AppRequests
+              | where TimeGenerated > ago(24h) and Success == false
+              | summarize
+                  occurrences = count(),
+                  first_seen  = min(TimeGenerated),
+                  last_seen   = max(TimeGenerated)
+                by Name, ResultCode
+              | order by occurrences desc
+              | limit 20
+            " \
+            --output json 2>/dev/null || echo "[]")
+
+          # Write to GITHUB_OUTPUT using heredoc to safely handle multiline JSON
+          {
+            echo 'EXCEPTIONS<<EOF'
+            echo "$EXCEPTIONS"
+            echo 'EOF'
+            echo 'FAILED_REQUESTS<<EOF'
+            echo "$FAILED_REQUESTS"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Analyze logs and create issues
+        uses: anthropics/claude-code-action@v1
+        with:
+          use_foundry: "true"
+          github_token: ${{ github.token }}
+          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6"
+          prompt: |
+            You are a senior engineer analyzing production errors from our application.
+            Your job is to triage the most critical issues and start fixing them.
+
+            ## Logs from the last 24 hours
+
+            ### Application Exceptions
+            ${{ steps.logs.outputs.EXCEPTIONS }}
+
+            ### Failed Requests
+            ${{ steps.logs.outputs.FAILED_REQUESTS }}
+
+            ## Your tasks
+
+            1. **Triage**: Identify the 3 most critical errors. Rank by:
+               - Frequency (occurrences)
+               - Severity (exceptions > failed requests)
+               - User impact (5xx errors > 4xx errors)
+
+            2. **Create a GitHub issue for each of the 3 errors** using `gh issue create`:
+               - Title: concise description of the error
+               - Body: include error type, occurrence count, first/last seen, stack trace excerpt, and a suggested fix approach
+               - Labels: `bug,production`
+               - Repository: ${{ github.repository }}
+
+            3. **Fix the most critical error**:
+               - Create a branch off main
+               - Implement a fix based on the stack trace and error details
+               - Open a pull request referencing the issue number
+               - PR title format: `fix: <short description> (fixes #<issue-number>)`
