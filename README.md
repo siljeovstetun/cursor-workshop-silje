@@ -2,6 +2,10 @@
 
 A starter project for learning AI-assisted development with Cursor.
 
+Hello Silje
+
+Happy Friday
+
 ## Project Structure
 
 ```
