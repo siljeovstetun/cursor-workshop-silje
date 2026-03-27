@@ -5,7 +5,7 @@
 # Required secrets:
 #   ANTHROPIC_FOUNDRY_API_KEY   — Azure AI Foundry API key
 #   ANTHROPIC_BASE_URL          — Foundry endpoint (e.g. https://<resource>.services.ai.azure.com/anthropic)
-#   AZURE_CREDENTIALS           — JSON with clientId, clientSecret, tenantId, subscriptionId (see below)
+#   AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
 #
 # Azure RBAC: the service principal needs at least "Log Analytics Reader" on
 #   rg-snkm-shared-p / law-snkm-p to run log queries.
@@ -37,7 +37,10 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Fetch production logs (last 24 hours)
         id: logs
