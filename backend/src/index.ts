@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { posts } from "./data/posts";
+import { tenders, tenderRuns, TenderRun } from "./data/tenders";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -47,6 +48,47 @@ app.get("/api/tags", (req, res) => {
   const uniqueTags = [...new Set(allTags)].sort();
 
   res.json(uniqueTags);
+});
+
+// Get all tenders
+app.get("/api/v1.0/tenders", (req, res) => {
+  res.json(tenders);
+});
+
+// Get single tender by ID
+app.get("/api/v1.0/tenders/:tenderId", (req, res) => {
+  const tender = tenders.find((t) => t.id === req.params.tenderId);
+
+  if (!tender) {
+    return res.status(404).json({ error: "Tender not found" });
+  }
+
+  res.json(tender);
+});
+
+// Trigger a tender run
+app.post("/api/v1.0/tenders/:tenderId/runs", (req, res) => {
+  const tender = tenders.find((t) => t.id === req.params.tenderId);
+
+  if (!tender) {
+    return res.status(404).json({ error: "Tender not found" });
+  }
+
+  const run: TenderRun = {
+    id: `run-${Date.now()}`,
+    tenderId: tender.id,
+    startedAt: new Date().toISOString(),
+    status: "running",
+  };
+
+  tenderRuns.push(run);
+  res.status(201).json(run);
+});
+
+// Get runs for a tender
+app.get("/api/v1.0/tenders/:tenderId/runs", (req, res) => {
+  const runs = tenderRuns.filter((r) => r.tenderId === req.params.tenderId);
+  res.json(runs);
 });
 
 // Health check
