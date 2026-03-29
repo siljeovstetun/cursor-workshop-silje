@@ -54,6 +54,25 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// Versioned public event/post lookup by id or slug
+app.get("/v1.0/public/:eventIdOrSlug", (req, res) => {
+  const { eventIdOrSlug } = req.params;
+  const post = posts.find(
+    (p) => p.slug === eventIdOrSlug || p.id === eventIdOrSlug
+  );
+
+  if (!post) {
+    return res.status(404).json({ error: "Event not found" });
+  }
+
+  res.json(post);
+});
+
+// Catch-all 404 handler to prevent hanging connections (produces 499s in proxies)
+app.use((_req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
+
 app.listen(PORT, () => {
   console.log(`Blog API server running on http://localhost:${PORT}`);
 });
