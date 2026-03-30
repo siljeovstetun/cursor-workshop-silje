@@ -49,6 +49,20 @@ app.get("/api/tags", (req, res) => {
   res.json(uniqueTags);
 });
 
+// Versioned public endpoint: look up a post by slug or ID
+app.get("/v1.0/public/:eventIdOrSlug", (req, res) => {
+  const { eventIdOrSlug } = req.params;
+  const post = posts.find(
+    (p) => p.slug === eventIdOrSlug || p.id === eventIdOrSlug
+  );
+
+  if (!post) {
+    return res.status(404).json({ error: "Event not found" });
+  }
+
+  res.json(post);
+});
+
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
